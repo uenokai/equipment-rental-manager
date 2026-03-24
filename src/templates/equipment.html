@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>機材マスタ管理</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <header class="header">
+        <h1>📸 機材レンタル管理</h1>
+        <nav>
+            <a href="/" class="nav-link">レンタル管理</a>
+            <a href="/equipment" class="nav-link active">機材マスタ</a>
+        </nav>
+    </header>
+
+    <main class="container">
+        <!-- Excelインポートエリア -->
+        <section class="card">
+            <h2>📥 Excelインポート</h2>
+            <p class="hint">Excelファイル（.xlsx）の1列目に商品コード、2列目に商品名を入力し、2行目からデータを記載してください。<br>1行目はヘッダー行として読み飛ばされます。</p>
+            <div class="import-area">
+                <input type="file" id="importFile" accept=".xlsx">
+                <button class="btn btn-primary" onclick="importExcel()">インポート</button>
+            </div>
+            <p id="importMessage" class="action-msg" style="display:none;"></p>
+        </section>
+
+        <!-- 機材一覧 -->
+        <section class="card">
+            <h2>📋 機材マスタ一覧 <span id="equipmentCount" class="count-badge"></span></h2>
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>機材コード</th>
+                        <th>機材名</th>
+                    </tr>
+                </thead>
+                <tbody id="equipmentBody">
+                </tbody>
+            </table>
+            <p id="noEquipment" class="no-data" style="display:none;">登録された機材はありません</p>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='equipment.js') }}"></script>
+</body>
+
+</html>

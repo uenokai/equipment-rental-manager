@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>機材レンタル管理</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <header class="header">
+        <h1>📸 機材レンタル管理</h1>
+        <nav>
+            <a href="/" class="nav-link active">レンタル管理</a>
+            <a href="/equipment" class="nav-link">機材マスタ</a>
+        </nav>
+    </header>
+
+    <main class="container">
+        <!-- 検索エリア -->
+        <section class="card search-section">
+            <h2>🔍 商品コード検索</h2>
+            <div class="search-bar">
+                <input type="text" id="searchCode" placeholder="商品コードを入力" autocomplete="off">
+                <button id="searchBtn" onclick="searchEquipment()">検索</button>
+            </div>
+            <p id="searchError" class="error-msg" style="display:none;"></p>
+        </section>
+
+        <!-- 検索結果・操作エリア（初期は非表示） -->
+        <section id="resultSection" class="card result-section" style="display:none;">
+            <div class="info-grid">
+                <div class="info-item">
+                    <label>商品名</label>
+                    <span id="equipmentName" class="info-value"></span>
+                </div>
+                <div class="info-item">
+                    <label>ステータス</label>
+                    <span id="statusBadge" class="badge"></span>
+                </div>
+            </div>
+
+            <hr>
+
+            <form id="rentalForm" onsubmit="return false;">
+                <input type="hidden" id="productCode" value="">
+                <div class="form-grid-single">
+                    <div class="form-group">
+                        <label for="borrowerName">氏名（フルネーム推奨）</label>
+                        <input type="text" id="borrowerName" placeholder="氏名を入力">
+                    </div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="rentalStart">開始日</label>
+                        <input type="date" id="rentalStart">
+                    </div>
+                    <div class="form-group">
+                        <label for="rentalEnd">終了日</label>
+                        <input type="date" id="rentalEnd">
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button id="rentalBtn" class="btn btn-primary" onclick="registerRental()">レンタル登録</button>
+                    <button id="returnBtn" class="btn btn-secondary" onclick="processReturn()">返却</button>
+                </div>
+            </form>
+
+            <p id="actionMessage" class="action-msg" style="display:none;"></p>
+        </section>
+
+        <!-- レンタル履歴エリア（初期は非表示） -->
+        <section id="historySection" class="card history-section" style="display:none;">
+            <h2>📋 レンタル履歴</h2>
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>氏名</th>
+                        <th>開始日</th>
+                        <th>終了日</th>
+                        <th>ステータス</th>
+                        <th>返却日時</th>
+                    </tr>
+                </thead>
+                <tbody id="historyBody">
+                </tbody>
+            </table>
+            <p id="noHistory" class="no-data" style="display:none;">履歴がありません</p>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='main.js') }}"></script>
+</body>
+
+</html>
