@@ -9,6 +9,9 @@ import os
 import sys
 import threading
 
+from dotenv import load_dotenv
+load_dotenv()
+
 # pythonw.exe 等で標準出力が無い環境でのクラッシュ（sys.stdout is None）を防ぐ
 if sys.stdout is None:
     sys.stdout = open(os.devnull, 'w')
