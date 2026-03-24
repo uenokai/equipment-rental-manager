@@ -10,7 +10,14 @@ import sys
 import threading
 
 from dotenv import load_dotenv
-load_dotenv()
+
+# .exe 化した場合は実行ファイルと同じディレクトリの .env を読む
+_dotenv_path = os.path.join(
+    os.path.dirname(sys.executable) if getattr(sys, 'frozen', False)
+    else os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    '.env'
+)
+load_dotenv(_dotenv_path)
 
 # pythonw.exe 等で標準出力が無い環境でのクラッシュ（sys.stdout is None）を防ぐ
 if sys.stdout is None:

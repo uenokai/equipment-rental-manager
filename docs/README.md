@@ -61,40 +61,51 @@ PC画面のキャプチャ（表組み）から機材情報を自動抽出して
 
 > **補足**: レンタル履歴がある機材はインポート時に自動で削除対象から除外されます。
 
-## 起動方法
+## 別環境でのセットアップ
 
-**`dist/機材レンタル管理.exe` をダブルクリック** するだけで、専用ウィンドウが最大化状態で開きます。
+### パターンA: .exe をダウンロードして使う（推奨・Python不要）
 
-> **終了方法**: ウィンドウの × ボタンをクリックするとアプリが終了します。
-
-## 環境変数の設定（画像解析機能を使う場合）
-
-プロジェクトルートの `.env` ファイルに Azure の接続情報を設定してください。
+1. [GitHub Releases](https://github.com/uenokai/equipment-rental-manager/releases) から `機材レンタル管理.exe` をダウンロード
+2. 任意のフォルダに配置し、同じフォルダに `.env` ファイルを作成
 
 ```
 AZURE_DI_ENDPOINT=https://xxxxx.cognitiveservices.azure.com/
 AZURE_DI_KEY=xxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-> `.env` ファイルは `.gitignore` で除外済みのため、リポジトリには含まれません。
+3. `機材レンタル管理.exe` をダブルクリックで起動
 
-## 別PCへの移行手順
+> **Pythonのインストールは不要**です。
 
-### コピーするもの
+### パターンB: リポジトリをクローンしてソースから起動（開発者向け）
 
-| 対象 | 必要 | 備考 |
-|---|---|---|
-| `dist/機材レンタル管理.exe` | ✅ 必須 | アプリ本体 |
-| `data/rental.db` | ✅ データ引継ぎ時 | 機材マスタ＋レンタル履歴 |
-| `.env` | ✅ 画像解析を使う場合 | Azure 接続情報 |
+```bash
+git clone https://github.com/uenokai/equipment-rental-manager
+cd equipment-rental-manager
 
-### 移行先での手順
+# 仮想環境を作成してパッケージをインストール
+python -m venv venv
+.\venv\Scripts\pip install -r requirements.txt
 
-1. `機材レンタル管理.exe` と `data/` フォルダを同じディレクトリにコピー
-2. 画像解析を使う場合は `.env` も同じディレクトリに配置
-3. `機材レンタル管理.exe` をダブルクリック
+# .env を作成して Azure 接続情報を記載（上記参照）
 
-> **Pythonのインストールは不要**です。.exe 単体で動作します。
+# 起動
+cd src
+..\venv\Scripts\python app.py
+```
+
+> **終了方法**: ウィンドウの × ボタンをクリックするとアプリが終了します。
+
+## データの引継ぎ・バックアップ
+
+`data/rental.db` ファイル1つに全データ（機材マスタ＋レンタル履歴）が格納されています。
+このファイルをコピーするだけでバックアップ・別PCへの移行が完了します。
+
+| 対象 | 用途 |
+|---|---|
+| `機材レンタル管理.exe` | アプリ本体 |
+| `data/rental.db` | 全データ（機材マスタ＋レンタル履歴） |
+| `.env` | Azure 接続情報（画像解析を使う場合） |
 
 ## データバックアップ
 
