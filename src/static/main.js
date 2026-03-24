@@ -4,7 +4,7 @@
  * 検索・レンタル登録・返却のAPI通信とフォーム状態制御を担当する。
  */
 
-// Enterキーで検索実行
+// Enterキーで検索実行 / 画像ドロップ初期化
 document.addEventListener("DOMContentLoaded", () => {
     const searchInput = document.getElementById("searchCode");
     searchInput.addEventListener("keydown", (event) => {
@@ -12,7 +12,273 @@ document.addEventListener("DOMContentLoaded", () => {
             searchEquipment();
         }
     });
+
+    initImageUpload();
 });
+
+
+// ============================================================
+// 画像解析セクション
+// ============================================================
+
+function initImageUpload() {
+    const fileInput = document.getElementById("imageFile");
+    const dropArea = document.getElementById("imageDropArea");
+
+    // ファイル選択ダイアログ
+    dropArea.addEventListener("click", () => fileInput.click());
+
+    fileInput.addEventListener("change", () => {
+        if (fileInput.files.length > 0) {
+            setImagePreview(fileInput.files[0]);
+        }
+    });
+
+    // ドラッグ&ドロップ
+    dropArea.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropArea.classList.add("drag-over");
+    });
+    dropArea.addEventListener("dragleave", () => {
+        dropArea.classList.remove("drag-over");
+    });
+    dropArea.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropArea.classList.remove("drag-over");
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith("image/")) {
+            setImagePreview(file);
+            // fileInput にも反映（analyze 時に使用）
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            fileInput.files = dt.files;
+        }
+    });
+}
+
+
+/**
+ * 画像プレビューを表示し、解析ボタンを有効化する
+ */
+function setImagePreview(file) {
+    const previewArea = document.getElementById("imagePreviewArea");
+    const previewImg = document.getElementById("imagePreview");
+    const dropArea = document.getElementById("imageDropArea");
+    const analyzeBtn = document.getElementById("analyzeBtn");
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        previewImg.src = e.target.result;
+        previewArea.style.display = "flex";
+        dropArea.style.display = "none";
+        analyzeBtn.disabled = false;
+    };
+    reader.readAsDataURL(file);
+
+    // 解析結果エリアをリセット
+    resetImageResult();
+}
+
+
+/**
+ * 画像をクリアして初期状態に戻す
+ */
+function clearImage() {
+    document.getElementById("imageFile").value = "";
+    document.getElementById("imagePreviewArea").style.display = "none";
+    document.getElementById("imageDropArea").style.display = "flex";
+    document.getElementById("analyzeBtn").disabled = true;
+    document.getElementById("imageAnalyzeMsg").style.display = "none";
+    resetImageResult();
+}
+
+
+/**
+ * 解析結果エリアをリセットする
+ */
+function resetImageResult() {
+    document.getElementById("imageResultArea").style.display = "none";
+    document.getElementById("imageConflictArea").style.display = "none";
+    document.getElementById("imgRegisterMsg").style.display = "none";
+    ["imgProductCode", "imgBorrowerName", "imgRentalStart", "imgRentalEnd"].forEach(id => {
+        document.getElementById(id).value = "";
+    });
+}
+
+
+/**
+ * 画像を Azure Document Intelligence で解析する
+ */
+async function analyzeImage() {
+    const fileInput = document.getElementById("imageFile");
+    const analyzeBtn = document.getElementById("analyzeBtn");
+    const msgEl = document.getElementById("imageAnalyzeMsg");
+
+    if (!fileInput.files.length) return;
+
+    const formData = new FormData();
+    formData.append("image", fileInput.files[0]);
+
+    analyzeBtn.disabled = true;
+    analyzeBtn.textContent = "解析中…";
+    msgEl.style.display = "none";
+    resetImageResult();
+
+    try {
+        const response = await fetch("/api/analyze-image", {
+            method: "POST",
+            body: formData
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            showImageMsg(data.error || "解析に失敗しました", "error");
+            return;
+        }
+
+        displayImageResult(data);
+
+    } catch (error) {
+        showImageMsg("通信エラーが発生しました", "error");
+        console.error("画像解析エラー:", error);
+    } finally {
+        analyzeBtn.disabled = false;
+        analyzeBtn.textContent = "解析する";
+    }
+}
+
+
+/**
+ * 解析結果を画面に表示する
+ */
+function displayImageResult(data) {
+    const { extracted, rental_status } = data;
+    const resultArea = document.getElementById("imageResultArea");
+    const conflictArea = document.getElementById("imageConflictArea");
+    const registerBtn = document.getElementById("imgRegisterBtn");
+
+    // 抽出フィールドを入力欄に反映
+    document.getElementById("imgProductCode").value  = extracted.product_code  || "";
+    document.getElementById("imgBorrowerName").value = extracted.borrower_name || "";
+    document.getElementById("imgRentalStart").value  = extracted.rental_start  || "";
+    document.getElementById("imgRentalEnd").value    = extracted.rental_end    || "";
+
+    resultArea.style.display = "block";
+
+    // 機材がレンタル中かどうか確認
+    const isRenting = rental_status && rental_status.current_rental !== null;
+
+    if (isRenting) {
+        const r = rental_status.current_rental;
+        const equipName = rental_status.equipment ? rental_status.equipment.equipment_name : "";
+        document.getElementById("imageConflictDetail").innerHTML = `
+            <table class="conflict-table">
+                <tr><th>機材名</th><td>${escapeHtml(equipName)}</td></tr>
+                <tr><th>借用者</th><td>${escapeHtml(r.borrower_name)}</td></tr>
+                <tr><th>開始日</th><td>${escapeHtml(r.rental_start)}</td></tr>
+                <tr><th>終了日</th><td>${escapeHtml(r.rental_end)}</td></tr>
+            </table>
+        `;
+        conflictArea.style.display = "block";
+        registerBtn.disabled = true;
+    } else {
+        conflictArea.style.display = "none";
+        registerBtn.disabled = false;
+    }
+
+    // 抽出できなかったフィールドがある場合は注意メッセージ
+    const missing = ["product_code", "borrower_name", "rental_start", "rental_end"]
+        .filter(k => !extracted[k]);
+    if (missing.length > 0) {
+        const labelMap = {
+            product_code: "機材ID", borrower_name: "氏名",
+            rental_start: "開始日", rental_end: "終了日"
+        };
+        showImageMsg(
+            `以下の項目が取得できませんでした。手動で入力してください: ${missing.map(k => labelMap[k]).join("、")}`,
+            "error"
+        );
+    }
+}
+
+
+/**
+ * 解析結果のデータでレンタル登録する
+ */
+async function registerFromImage() {
+    const productCode  = document.getElementById("imgProductCode").value.trim();
+    const borrowerName = document.getElementById("imgBorrowerName").value.trim();
+    const rentalStart  = document.getElementById("imgRentalStart").value;
+    const rentalEnd    = document.getElementById("imgRentalEnd").value;
+    const msgEl        = document.getElementById("imgRegisterMsg");
+
+    msgEl.style.display = "none";
+
+    if (!productCode || !borrowerName || !rentalStart || !rentalEnd) {
+        showImgRegisterMsg("すべての項目を入力してください", "error");
+        return;
+    }
+    if (rentalStart > rentalEnd) {
+        showImgRegisterMsg("終了日は開始日以降を指定してください", "error");
+        return;
+    }
+
+    try {
+        const response = await fetch("/api/rental", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                product_code: productCode,
+                borrower_name: borrowerName,
+                rental_start: rentalStart,
+                rental_end: rentalEnd
+            })
+        });
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            showImgRegisterMsg("レンタル登録が完了しました", "success");
+            document.getElementById("imgRegisterBtn").disabled = true;
+        } else {
+            // 競合が起きた場合（他の経路で先に登録された等）
+            if (response.status === 409) {
+                showImgRegisterMsg(`登録失敗: ${result.error}`, "error");
+                // 最新のレンタル状況を再取得して表示
+                if (productCode) {
+                    const searchRes = await fetch(`/api/search?product_code=${encodeURIComponent(productCode)}`);
+                    if (searchRes.ok) {
+                        const searchData = await searchRes.json();
+                        if (searchData.current_rental) {
+                            displayImageResult({ extracted: { product_code: productCode, borrower_name: null, rental_start: null, rental_end: null }, rental_status: searchData });
+                        }
+                    }
+                }
+            } else {
+                showImgRegisterMsg(result.error || "登録に失敗しました", "error");
+            }
+        }
+    } catch (error) {
+        showImgRegisterMsg("通信エラーが発生しました", "error");
+        console.error("レンタル登録エラー:", error);
+    }
+}
+
+
+// ---------- 画像セクション ユーティリティ ----------
+
+function showImageMsg(message, type) {
+    const el = document.getElementById("imageAnalyzeMsg");
+    el.textContent = message;
+    el.className = `action-msg ${type}`;
+    el.style.display = "block";
+}
+
+function showImgRegisterMsg(message, type) {
+    const el = document.getElementById("imgRegisterMsg");
+    el.textContent = message;
+    el.className = `action-msg ${type}`;
+    el.style.display = "block";
+}
 
 
 /**

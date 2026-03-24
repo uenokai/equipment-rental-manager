@@ -1,3 +1,5 @@
 Flask
 openpyxl
 pywebview
+azure-ai-documentintelligence
+python-dotenv

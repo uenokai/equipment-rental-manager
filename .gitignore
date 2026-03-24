@@ -13,6 +13,9 @@ dist/
 # データベース・アップロード
 data/
 
+# 環境変数・シークレット
+.env
+
 # OS
 .DS_Store
 Thumbs.db

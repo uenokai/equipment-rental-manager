@@ -9,6 +9,9 @@ import os
 import sys
 import threading
 
+from dotenv import load_dotenv
+load_dotenv()
+
 # pythonw.exe 等で標準出力が無い環境でのクラッシュ（sys.stdout is None）を防ぐ
 if sys.stdout is None:
     sys.stdout = open(os.devnull, 'w')
@@ -19,6 +22,7 @@ from flask import Flask, render_template, request, jsonify
 from openpyxl import load_workbook
 from database import initialize_database, get_all_equipment, sync_equipment_from_list, \
     search_by_product_code, register_rental, process_return
+from azure_ocr import analyze_image
 
 
 # ---------- パス解決 ----------
@@ -126,6 +130,41 @@ def api_return():
         return jsonify(result)
     else:
         return jsonify(result), 409
+
+
+@app.route("/api/analyze-image", methods=["POST"])
+def api_analyze_image():
+    """画像からレンタル情報を解析する。機材がレンタル中の場合は現在の状況も返す。"""
+    ALLOWED_CONTENT_TYPES = {"image/png", "image/jpeg", "image/jpg", "image/bmp", "image/tiff"}
+
+    if "image" not in request.files:
+        return jsonify({"error": "画像ファイルが必要です"}), 400
+
+    image_file = request.files["image"]
+    content_type = image_file.content_type or "image/png"
+    if content_type not in ALLOWED_CONTENT_TYPES:
+        return jsonify({"error": "対応形式: PNG, JPEG, BMP, TIFF"}), 400
+
+    image_bytes = image_file.read()
+
+    try:
+        extracted = analyze_image(image_bytes, content_type)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 500
+    except RuntimeError as e:
+        return jsonify({"error": str(e)}), 502
+    except Exception as e:
+        return jsonify({"error": f"画像解析に失敗しました: {str(e)}"}), 500
+
+    # 機材IDが取れた場合、現在のレンタル状況も確認する
+    rental_status = None
+    if extracted.get("product_code"):
+        rental_status = search_by_product_code(extracted["product_code"])
+
+    return jsonify({
+        "extracted": extracted,
+        "rental_status": rental_status
+    })
 
 
 @app.route("/api/equipment")
