@@ -22,7 +22,14 @@ a = Analysis(
     ],
     hiddenimports=[
         'webview',
-        'clr',           # pywebviewがWindows環境で使用
+        'clr',                                    # pywebviewがWindows環境で使用
+        'dotenv',                                 # python-dotenv
+        'azure.ai.documentintelligence',
+        'azure.ai.documentintelligence.models',
+        'azure.core.credentials',
+        'azure.core.pipeline',
+        'azure.core.pipeline.transport',
+        'azure.core.pipeline.policies',
     ],
     hookspath=[],
     hooksconfig={},
